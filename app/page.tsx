@@ -25,14 +25,83 @@ const initialItems = [
   { id: 20, label: "Tries to make a hectic schedule about our day", crossed: false },
 ];
 
+type FireworkParticle = {
+  id: number;
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  color: string;
+  size: number;
+};
+
+type Firework = {
+  id: number;
+  x: number;
+  y: number;
+  particles: FireworkParticle[];
+};
+
+const colors = [
+  "#ec4899",
+  "#f97316",
+  "#8b5cf6",
+  "#06b6d4",
+  "#eab308",
+  "#22c55e",
+];
+
+function createFirework(id: number): Firework {
+  const x = 20 + Math.random() * 60;
+  const y = 20 + Math.random() * 40;
+  const particleCount = 18;
+
+  const particles: FireworkParticle[] = Array.from({ length: particleCount }, (_, index) => {
+    const angle = (Math.PI * 2 * index) / particleCount;
+    const velocity = 60 + Math.random() * 50;
+
+    return {
+      id: id * 100 + index,
+      x,
+      y,
+      dx: Math.cos(angle) * velocity,
+      dy: Math.sin(angle) * velocity,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: 6 + Math.random() * 4,
+    };
+  });
+
+  return { id, x, y, particles };
+}
+
 export default function Home() {
   const [items, setItems] = useState(initialItems);
+  const [fireworks, setFireworks] = useState<Firework[]>([]);
+
+  const triggerFireworks = () => {
+    const newFirework = createFirework(Date.now());
+
+    setFireworks((current) => [...current, newFirework]);
+
+    setTimeout(() => {
+      setFireworks((current) =>
+        current.filter((firework) => firework.id !== newFirework.id)
+      );
+    }, 900);
+  };
 
   const toggleItem = (id: number) => {
     setItems((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, crossed: !item.crossed } : item
-      )
+      current.map((item) => {
+        if (item.id === id) {
+          const willBeCrossed = !item.crossed;
+          if (willBeCrossed) {
+            triggerFireworks();
+          }
+          return { ...item, crossed: willBeCrossed };
+        }
+        return item;
+      })
     );
   };
 
@@ -40,11 +109,35 @@ export default function Home() {
     setItems((current) =>
       current.map((item) => ({ ...item, crossed: false }))
     );
+    setFireworks([]);
   };
 
   return (
-    <main className="min-h-screen bg-pink-50 flex items-center justify-center p-6">
-      <div className="w-full max-w-7xl rounded-3xl bg-white shadow-xl p-6 border border-pink-100">
+    <main className="relative min-h-screen bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 flex items-center justify-center p-6 overflow-hidden">
+      <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
+        {fireworks.map((firework) => (
+          <div key={firework.id}>
+            {firework.particles.map((particle) => (
+              <span
+                key={particle.id}
+                className="absolute rounded-full animate-[firework_900ms_ease-out_forwards]"
+                style={{
+                  left: `${particle.x}%`,
+                  top: `${particle.y}%`,
+                  width: `${particle.size}px`,
+                  height: `${particle.size}px`,
+                  backgroundColor: particle.color,
+                  boxShadow: `0 0 12px ${particle.color}`,
+                  ["--dx" as string]: `${particle.dx}px`,
+                  ["--dy" as string]: `${particle.dy}px`,
+                }}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+
+      <div className="w-full max-w-7xl rounded-3xl bg-white/85 backdrop-blur-md shadow-2xl p-6 border border-pink-100">
         <h1 className="text-3xl font-bold text-center text-pink-600 mb-2">
           Munnar Bingo
         </h1>
@@ -54,18 +147,18 @@ export default function Home() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {items.map((item) => (
-  <button
-    key={item.id}
-    onClick={() => toggleItem(item.id)}
-    className={`rounded-2xl border p-4 text-sm font-semibold text-left transition ${
-      item.crossed
-        ? "bg-pink-200 text-gray-500 line-through border-pink-300"
-        : "bg-pink-100 text-pink-700 border-pink-200 hover:bg-pink-150"
-    }`}
-  >
-    {item.label}
-  </button>
-))}
+            <button
+              key={item.id}
+              onClick={() => toggleItem(item.id)}
+              className={`rounded-2xl border p-4 text-sm font-semibold text-left transition duration-200 ${
+                item.crossed
+                  ? "bg-pink-200 text-gray-500 line-through border-pink-300 scale-[0.98]"
+                  : "bg-pink-100 text-pink-700 border-pink-200 hover:bg-pink-150 hover:scale-[1.02]"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
 
         <button
@@ -75,6 +168,19 @@ export default function Home() {
           Reset
         </button>
       </div>
+
+      <style jsx>{`
+        @keyframes firework {
+          0% {
+            transform: translate(0, 0) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(var(--dx), var(--dy)) scale(0);
+            opacity: 0;
+          }
+        }
+      `}</style>
     </main>
   );
 }
